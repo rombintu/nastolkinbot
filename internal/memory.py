@@ -40,7 +40,7 @@ class Game:
             self.max_gamers = max_gamers
     
     def get_table_players(self):
-        return "\n".join([f'{i+1}. {g.name} {g.score}' for i, g in enumerate(self.gamers)])
+        return "\n".join([f'{i+1}. {g.name} {g.score} смеху@чков' for i, g in enumerate(self.gamers)])
 
     def add_gamer(self, gamer):
         for g in self.gamers:
