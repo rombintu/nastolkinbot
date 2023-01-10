@@ -1,6 +1,6 @@
 # local imports
 import os
-import logging
+from loguru import logger as log
 
 # external imports
 import telebot
@@ -12,6 +12,7 @@ from internal import content, memory
 from internal import keyboards as kb
 
 load_dotenv()
+log.level("DEBUG")
 
 bot = telebot.TeleBot(os.getenv("BOT_TOKEN"), parse_mode=None)
 # db = database.Database(os.getenv("DATABASE"))
@@ -19,7 +20,7 @@ admin = os.getenv("BOT_ADMIN", "NoName")
 mem = memory.Memory()
 
 def handle_error(err, too, description="unknown error"):
-    logging.error(err)
+    log.error(err)
     bot.send_message(
         too, 
         content.error["500"].format(description, admin), 
@@ -71,43 +72,72 @@ def games_callback(c: types.CallbackQuery):
 
         case ["game", "type", _]:
             # TODO DLC
+            game_id = data[-1]
+            game = mem.get_game_by_id(game_id)
+            if not game:
+                bot.send_message(c.message.chat.id, f"Этой игры: {game_id}, уже не существует")
+                return
             bot.send_message(
                 c.message.chat.id, 
                 "Доступен только один тип игры, в разработке..."
             )
-        case ["game", "max", "gamers", _]:
+        case ["game", "refresh", _]:
             game_id = data[-1]
             game = mem.get_game_by_id(game_id)
             if not game:
-                bot.send_message(
-                    c.message.chat.id, 
-                    f"Этой игры: {game_id}, уже не существует"
-                )
+                bot.send_message(c.message.chat.id, f"Этой игры: {game_id}, уже не существует")
                 return
-            game.i_max_gamers()
+            bot.edit_message_text(
+                game.info(),
+                c.from_user.id, c.message.id, 
+                reply_markup=kb.get_keyboard_connecting(game)
+            )
+            
+        case ["game", "max", "players", _]:
+            game_id = data[-1]
+            game = mem.get_game_by_id(game_id)
+            if not game:
+                bot.send_message(c.message.chat.id, f"Этой игры: {game_id}, уже не существует")
+                return
+            game.i_max_players()
             bot.edit_message_text(f"Игра: *{game._id}*",
                 c.from_user.id, c.message.id, 
                 reply_markup=kb.get_keyboard_game(game), parse_mode="markdown")
 
+        case ["game", "password", "update", _]:
+            game_id = data[-1]
+            game = mem.get_game_by_id(game_id)
+            if not game:
+                bot.send_message(c.message.chat.id, f"Этой игры: {game_id}, уже не существует")
+                return
+            game.update_password()
+            bot.send_message(c.message.chat.id, f"Изменение пароля пока что декоративное, в разработке.")
+            bot.edit_message_text(f"Игра: *{game._id}*",
+                c.from_user.id, c.message.id, 
+                reply_markup=kb.get_keyboard_game(game), parse_mode="markdown")
+        
         case ["game", "connect", _]:            
             game_id = data[-1]
             game = mem.get_game_by_id(game_id)
             if not game:
                 bot.send_message(c.message.chat.id, f"Этой игры: {game_id}, уже не существует")
                 return
-            elif game.count_gamers() >= game.count_max_gamers():
+            elif game.count_players() >= game.count_max_players():
                 bot.send_message(c.message.chat.id, f"Игра: {game_id} заполнена")
                 return
             elif game.status == "Идет игра ✅":
                 bot.send_message(c.message.chat.id, f"Игра: {game_id} уже идет")
                 return
-            gamer = mem.try_get_gemer_by_uuid(c.message.chat.id, c.message.chat.first_name)
+            elif game.get_password():
+                # TODO
+                pass
+            player = mem.try_get_player_by_uuid(c.message.chat.id, c.message.chat.first_name)
             
-            if not game.add_gamer(gamer):
-                bot.send_message(gamer.uuid, f"Вы уже учавствуете в другой игре /info")
+            if not game.add_player(player):
+                bot.send_message(player.uuid, f"Вы уже учавствуете в другой игре /info")
                 return
-            for g in game.gamers:
-                if g.uuid == gamer.uuid: continue
+            for g in game.players:
+                if g.uuid == player.uuid: continue
                 bot.send_message(g.uuid, f"Присоединился игрок: {c.message.chat.first_name}")
             bot.send_message(c.message.chat.id, game.info(), reply_markup=kb.get_keyboard_connecting(game))
 
@@ -118,40 +148,44 @@ def games_callback(c: types.CallbackQuery):
                 bot.send_message(c.message.chat.id, f"Этой игры: {game_id}, уже не существует")
                 return
 
-            gamer = mem.try_get_gemer_by_uuid(c.message.chat.id, c.message.chat.first_name)
-            if not game.del_gamer(gamer):
-                bot.send_message(gamer.uuid, f"Вы не учавствуете в игре: {game._id}\n/games")
+            player = mem.try_get_player_by_uuid(c.message.chat.id, c.message.chat.first_name)
+            if not game.del_player(player):
+                bot.send_message(player.uuid, f"Вы не учавствуете в игре: {game._id}\n/games")
                 return
-            for g in game.gamers:
-                if g.uuid == gamer.uuid: continue
+            for g in game.players:
+                if g.uuid == player.uuid: continue
                 bot.send_message(g.uuid, f"Отключился игрок: {c.message.chat.first_name}")
             bot.send_message(c.message.chat.id, f"Вы покинули игру: {game._id}")
             bot.delete_message(c.message.chat.id, c.message.message_id)
         case ["game", "delete", _]:
             game_id = data[-1]
+            game = mem.get_game_by_id(game_id)
+            if not game:
+                bot.send_message(c.message.chat.id, f"Этой игры: {game_id}, уже не существует")
+                return
             game = mem.delete_game_by_id(game_id)
-            for g in game.gamers:
+            for g in game.players:
                 bot.send_message(g.uuid, f"Игра: {game._id} была удалена 😵")
             bot.delete_message(c.message.chat.id, c.message.message_id)
         case ["game", "start", _]:
             game_id = data[-1]
-            game = mem.delete_game_by_id(game_id)
+            game = mem.get_game_by_id(game_id)
             if not game:
                 bot.send_message(c.message.chat.id, f"Этой игры: {game_id}, уже не существует")
                 return
-            elif game.count_gamers() < 2:
+            elif game.count_players() < 2:
                 bot.send_message(c.message.chat.id, f"Требуется минимум 2 игрока")
                 return
             game.change_status()
-            for g in game.gamers:
+            for g in game.players:
                 bot.send_message(g.uuid, f"Итак, начнем игру\nСегодня с нами играют:\n{game.get_table_players()}")
     return
 
 @bot.message_handler(commands=['create'])
 def handle_message_create(message):
-    gamer = mem.try_get_gemer_by_uuid(message.from_user.id, message.from_user.first_name)
+    player = mem.try_get_player_by_uuid(message.from_user.id, message.from_user.first_name)
     game = memory.Game()
-    game.add_gamer(gamer)
+    game.add_player(player)
     mem.new_game(game)
     bot.send_message(
         message.chat.id, 
@@ -161,10 +195,13 @@ def handle_message_create(message):
 
 @bot.message_handler(commands=['info'])
 def handle_message_create(message):
-    gamer = mem.try_get_gemer_by_uuid(message.from_user.id, message.from_user.first_name)
+    player = mem.try_get_player_by_uuid(message.from_user.id, message.from_user.first_name)
     info = "Вы не учавствуете в играх\n/games - Список"
-    if gamer.game_id:
-        game = mem.get_game_by_id(gamer.game_id)
+    if player.game_id:
+        game = mem.get_game_by_id(player.game_id)
+        if not game:
+            bot.send_message(message.chat.id, f"Этой игры: {player.game_id}, уже не существует")
+            return
         bot.send_message(
             message.chat.id, 
             game.info(),
