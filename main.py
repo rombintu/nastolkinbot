@@ -13,6 +13,7 @@ from internal import keyboards as kb
 
 load_dotenv()
 log.level("DEBUG")
+MARKDOWN = "markdown"
 
 bot = telebot.TeleBot(os.getenv("BOT_TOKEN"), parse_mode=None)
 # db = database.Database(os.getenv("DATABASE"))
@@ -24,7 +25,7 @@ def handle_error(err, too, description="unknown error"):
     bot.send_message(
         too, 
         content.error["500"].format(description, admin), 
-        parse_mode="markdown"
+        parse_mode=MARKDOWN
     )
 
 @bot.message_handler(commands=['start', 'help'])
@@ -36,14 +37,14 @@ def handle_message_start(message):
 
 @bot.message_handler(commands=['games'])
 def handle_message_games(message):
-    if not mem.games:
+    if not mem.get_games():
         bot.send_message(message.chat.id, content.error["no_data"])
         return
     bot.send_message(
         message.chat.id, 
         f"🎲 *Присоединиться*" + content.get_last_update_format(), 
         reply_markup=kb.get_keyboard_games(mem.get_games()),
-        parse_mode="markdown"
+        parse_mode=MARKDOWN
         )
 
 @bot.callback_query_handler(func=lambda c: c.data)
@@ -52,40 +53,40 @@ def games_callback(c: types.CallbackQuery):
     match data:
         # REFRESH
         case ["refresh", "games"]:
-            if not mem.games:
+            if not mem.get_games():
                 bot.edit_message_text(
                     content.error["no_data"],
                     c.from_user.id, c.message.id,
-                    reply_markup=kb.get_keyboard_games(mem.get_games()), parse_mode="markdown"
+                    reply_markup=kb.get_keyboard_games(mem.get_games()), parse_mode=MARKDOWN
                 )
             else:
-                bot.edit_message_text(f"🎲 *Присоединиться*" + content.get_last_update_format(),
+                bot.edit_message_text(content.game_join + content.get_last_update_format(),
                     c.from_user.id, c.message.id, 
-                    reply_markup=kb.get_keyboard_games(mem.get_games()), parse_mode="markdown")
+                    reply_markup=kb.get_keyboard_games(mem.get_games()), parse_mode=MARKDOWN)
         
         case ["game", _, ">"]:
             start_i = int(data[1])
             if start_i <= 0: start_i = 0
-            bot.edit_message_text(f"🎲 *Присоединиться*",
+            bot.edit_message_text(content.game_join,
                 c.from_user.id, c.message.id, 
-                reply_markup=kb.get_keyboard_games(mem.get_games()), parse_mode="markdown")
+                reply_markup=kb.get_keyboard_games(mem.get_games()), parse_mode=MARKDOWN)
 
         case ["game", "type", _]:
             # TODO DLC
             game_id = data[-1]
             game = mem.get_game_by_id(game_id)
             if not game:
-                bot.send_message(c.message.chat.id, f"Этой игры: {game_id}, уже не существует")
+                bot.send_message(c.message.chat.id, content.game_not_found.format(game_id))
                 return
             bot.send_message(
                 c.message.chat.id, 
-                "Доступен только один тип игры, в разработке..."
+                content.devtodo
             )
         case ["game", "refresh", _]:
             game_id = data[-1]
             game = mem.get_game_by_id(game_id)
             if not game:
-                bot.send_message(c.message.chat.id, f"Этой игры: {game_id}, уже не существует")
+                bot.send_message(c.message.chat.id, content.game_not_found.format(game_id))
                 return
             bot.edit_message_text(
                 game.info(),
@@ -97,36 +98,36 @@ def games_callback(c: types.CallbackQuery):
             game_id = data[-1]
             game = mem.get_game_by_id(game_id)
             if not game:
-                bot.send_message(c.message.chat.id, f"Этой игры: {game_id}, уже не существует")
+                bot.send_message(c.message.chat.id, content.game_not_found.format(game_id))
                 return
-            game.i_max_players()
+            game.inc_players_max()
             bot.edit_message_text(f"Игра: *{game._id}*",
                 c.from_user.id, c.message.id, 
-                reply_markup=kb.get_keyboard_game(game), parse_mode="markdown")
+                reply_markup=kb.get_keyboard_game(game), parse_mode=MARKDOWN)
 
         case ["game", "password", "update", _]:
             game_id = data[-1]
             game = mem.get_game_by_id(game_id)
             if not game:
-                bot.send_message(c.message.chat.id, f"Этой игры: {game_id}, уже не существует")
+                bot.send_message(c.message.chat.id, content.game_not_found.format(game_id))
                 return
             game.update_password()
-            bot.send_message(c.message.chat.id, f"Изменение пароля пока что декоративное, в разработке.")
+            bot.send_message(c.message.chat.id, content.devtodo)
             bot.edit_message_text(f"Игра: *{game._id}*",
                 c.from_user.id, c.message.id, 
-                reply_markup=kb.get_keyboard_game(game), parse_mode="markdown")
+                reply_markup=kb.get_keyboard_game(game), parse_mode=MARKDOWN)
         
         case ["game", "connect", _]:            
             game_id = data[-1]
             game = mem.get_game_by_id(game_id)
             if not game:
-                bot.send_message(c.message.chat.id, f"Этой игры: {game_id}, уже не существует")
+                bot.send_message(c.message.chat.id, content.game_not_found.format(game_id))
                 return
-            elif game.count_players() >= game.count_max_players():
-                bot.send_message(c.message.chat.id, f"Игра: {game_id} заполнена")
+            elif game.get_players_count() >= game.get_players_max():
+                bot.send_message(c.message.chat.id, content.game_full_players.format(game_id))
                 return
             elif game.status == "Идет игра ✅":
-                bot.send_message(c.message.chat.id, f"Игра: {game_id} уже идет")
+                bot.send_message(c.message.chat.id, content.game_to_play.format(game_id))
                 return
             elif game.get_password():
                 # TODO
@@ -134,9 +135,9 @@ def games_callback(c: types.CallbackQuery):
             player = mem.try_get_player_by_uuid(c.message.chat.id, c.message.chat.first_name)
             
             if not game.add_player(player):
-                bot.send_message(player.uuid, f"Вы уже учавствуете в другой игре /info")
+                bot.send_message(player.uuid, content.already_play)
                 return
-            for g in game.players:
+            for g in game.get_players():
                 if g.uuid == player.uuid: continue
                 bot.send_message(g.uuid, f"Присоединился игрок: {c.message.chat.first_name}")
             bot.send_message(c.message.chat.id, game.info(), reply_markup=kb.get_keyboard_connecting(game))
@@ -145,14 +146,14 @@ def games_callback(c: types.CallbackQuery):
             game_id = data[-1]
             game = mem.get_game_by_id(game_id)
             if not game:
-                bot.send_message(c.message.chat.id, f"Этой игры: {game_id}, уже не существует")
+                bot.send_message(c.message.chat.id, content.game_not_found.format(game_id))
                 return
 
             player = mem.try_get_player_by_uuid(c.message.chat.id, c.message.chat.first_name)
             if not game.del_player(player):
-                bot.send_message(player.uuid, f"Вы не учавствуете в игре: {game._id}\n/games")
+                bot.send_message(player.uuid, content.not_playing.format(game.id))
                 return
-            for g in game.players:
+            for g in game.get_players():
                 if g.uuid == player.uuid: continue
                 bot.send_message(g.uuid, f"Отключился игрок: {c.message.chat.first_name}")
             bot.send_message(c.message.chat.id, f"Вы покинули игру: {game._id}")
@@ -161,36 +162,39 @@ def games_callback(c: types.CallbackQuery):
             game_id = data[-1]
             game = mem.get_game_by_id(game_id)
             if not game:
-                bot.send_message(c.message.chat.id, f"Этой игры: {game_id}, уже не существует")
+                bot.send_message(c.message.chat.id, content.game_not_found.format(game_id))
                 return
             game = mem.delete_game_by_id(game_id)
-            for g in game.players:
+            for g in game.get_players():
                 bot.send_message(g.uuid, f"Игра: {game._id} была удалена 😵")
             bot.delete_message(c.message.chat.id, c.message.message_id)
         case ["game", "start", _]:
             game_id = data[-1]
             game = mem.get_game_by_id(game_id)
             if not game:
-                bot.send_message(c.message.chat.id, f"Этой игры: {game_id}, уже не существует")
+                bot.send_message(c.message.chat.id, content.game_not_found.format(game_id))
                 return
-            elif game.count_players() < 2:
-                bot.send_message(c.message.chat.id, f"Требуется минимум 2 игрока")
+            elif game.get_players_count() < 2:
+                bot.send_message(c.message.chat.id, "Требуется минимум 2 игрока")
                 return
             game.change_status()
-            for g in game.players:
+            for g in game.get_players():
                 bot.send_message(g.uuid, f"Итак, начнем игру\nСегодня с нами играют:\n{game.get_table_players()}")
     return
 
 @bot.message_handler(commands=['create'])
 def handle_message_create(message):
     player = mem.try_get_player_by_uuid(message.from_user.id, message.from_user.first_name)
+    if player.game_id:
+        bot.send_message(player.uuid, content.already_play)
+        return
     game = memory.Game()
     game.add_player(player)
     mem.new_game(game)
     bot.send_message(
         message.chat.id, 
         f"Игра: *{game._id}*",
-        reply_markup=kb.get_keyboard_game(game), parse_mode="markdown"
+        reply_markup=kb.get_keyboard_game(game), parse_mode=MARKDOWN
     )
 
 @bot.message_handler(commands=['info'])
@@ -200,7 +204,7 @@ def handle_message_create(message):
     if player.game_id:
         game = mem.get_game_by_id(player.game_id)
         if not game:
-            bot.send_message(message.chat.id, f"Этой игры: {player.game_id}, уже не существует")
+            bot.send_message(message.chat.id, content.game_not_found.format(player.game_id))
             return
         bot.send_message(
             message.chat.id, 

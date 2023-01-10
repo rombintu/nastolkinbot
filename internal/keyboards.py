@@ -16,7 +16,7 @@ def get_keyboard_games(games, start_i=0):
         if i == len(games): break
         keyboard.add(
             types.InlineKeyboardButton(
-                text=f"{games[i]._id}: {games[i].count_players()}/{games[i].count_max_players()} игрок(ов)", 
+                text=f"{games[i]._id}: {games[i].get_players_count()}/{games[i].get_players_max()} игрок(ов)", 
                 callback_data=f"game_connect_{games[i]._id}"))
 
     if start_i == 0 and start_i + 5 >= len(games):
@@ -31,7 +31,7 @@ def get_keyboard_games(games, start_i=0):
 
 def get_keyboard_game(game):
     btn_game_type = types.InlineKeyboardButton(text=f"{game.get_game_type()}", callback_data=f"game_type_{game._id}")
-    btn_game_max_players = types.InlineKeyboardButton(text=f"Игроков: {game.count_max_players()}", callback_data=f"game_max_players_{game._id}")
+    btn_game_max_players = types.InlineKeyboardButton(text=f"Игроков: {game.get_players_max()}", callback_data=f"game_max_players_{game._id}")
     btn_game_password = types.InlineKeyboardButton(text=f"Пароль: {game.get_password()}", callback_data=f"game_password_update_{game._id}")
     btn_game_timeround = types.InlineKeyboardButton(text=f"Раунд: {game.get_timeround()}", callback_data=f"game_timeround_update_{game._id}")
     btn_game_delete = types.InlineKeyboardButton(text="Удалить 🚮", callback_data=f"game_delete_{game._id}")
@@ -39,7 +39,6 @@ def get_keyboard_game(game):
 
     keyboard = types.InlineKeyboardMarkup(row_width=3)
     keyboard.row(btn_game_type, btn_game_max_players)
-    keyboard.row(btn_game_timeround)
-    keyboard.row(btn_game_password)
+    keyboard.row(btn_game_password, btn_game_timeround)
     keyboard.row(btn_game_delete, btn_game_start)
     return keyboard
