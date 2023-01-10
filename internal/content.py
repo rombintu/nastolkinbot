@@ -1,4 +1,5 @@
 from datetime import datetime as dt
+from random import choice
 
 commands = [
     "/start - Помощь",
@@ -24,7 +25,13 @@ game_full_players = "Игра: {} заполнена"
 game_to_play = "Игра: {} уже идет"
 not_playing = "Вы не учавствуете в игре: {}\n/games"
 game_join = "🎲 *Присоединиться*"
-# 
 
 def get_last_update_format():
     return f"\n\t{dt.now().strftime('%d %B в %H:%M:%S')}"
+
+questions = [
+    f"question{i} ???" for i in range(1, 100)
+]
+
+def get_rand_question():
+    return choice(questions)

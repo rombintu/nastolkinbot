@@ -42,3 +42,10 @@ def get_keyboard_game(game):
     keyboard.row(btn_game_password, btn_game_timeround)
     keyboard.row(btn_game_delete, btn_game_start)
     return keyboard
+
+def get_keyboard_round(players):
+    keyboard = types.InlineKeyboardMarkup(row_width=3)
+    for player in players:
+        btn = types.InlineKeyboardButton(text=player.answer, callback_data=f"{player.answer}")
+        keyboard.add(btn)
+    return keyboard

@@ -28,6 +28,15 @@ def handle_error(err, too, description="unknown error"):
         parse_mode=MARKDOWN
     )
 
+def send_to_players(game, message, keyboard=None):
+    for g in game.get_players():
+        bot.send_message(g.uuid, message, reply_markup=keyboard)
+
+def input_from_players(game):
+    for pl in game.get_players():
+        pl.answer = pl.message.text
+        bot.register_next_step_handler(pl.message, handle_next_round, game) 
+
 @bot.message_handler(commands=['start', 'help'])
 def handle_message_start(message):
     bot.send_message(
@@ -134,12 +143,12 @@ def games_callback(c: types.CallbackQuery):
                 pass
             player = mem.try_get_player_by_uuid(c.message.chat.id, c.message.chat.first_name)
             
-            if not game.add_player(player):
+            if not game.add_player(player, c.message):
                 bot.send_message(player.uuid, content.already_play)
                 return
-            for g in game.get_players():
-                if g.uuid == player.uuid: continue
-                bot.send_message(g.uuid, f"Присоединился игрок: {c.message.chat.first_name}")
+            for pl in game.get_players():
+                if pl.uuid == player.uuid: continue
+                bot.send_message(pl.uuid, f"Присоединился игрок: {c.message.chat.first_name}")
             bot.send_message(c.message.chat.id, game.info(), reply_markup=kb.get_keyboard_connecting(game))
 
         case ["game", "disconnect", _]:
@@ -168,6 +177,7 @@ def games_callback(c: types.CallbackQuery):
             for g in game.get_players():
                 bot.send_message(g.uuid, f"Игра: {game._id} была удалена 😵")
             bot.delete_message(c.message.chat.id, c.message.message_id)
+
         case ["game", "start", _]:
             game_id = data[-1]
             game = mem.get_game_by_id(game_id)
@@ -178,9 +188,15 @@ def games_callback(c: types.CallbackQuery):
                 bot.send_message(c.message.chat.id, "Требуется минимум 2 игрока")
                 return
             game.change_status()
-            for g in game.get_players():
-                bot.send_message(g.uuid, f"Итак, начнем игру\nСегодня с нами играют:\n{game.get_table_players()}")
+            send_to_players(game, f"Итак, начнем игру\nСегодня с нами играют:\n{game.get_table_players()}")
+            send_to_players(game, f"Правила игры: {game.get_game_rule()}")
+            send_to_players(game, content.get_rand_question())
+            input_from_players(game)
     return
+
+def handle_next_round(message, game):
+    send_to_players(game, "Ответы других, голосуй за самый смешной", 
+        keyboard=kb.get_keyboard_round(game.get_players()))
 
 @bot.message_handler(commands=['create'])
 def handle_message_create(message):
@@ -189,7 +205,7 @@ def handle_message_create(message):
         bot.send_message(player.uuid, content.already_play)
         return
     game = memory.Game()
-    game.add_player(player)
+    game.add_player(player, message)
     mem.new_game(game)
     bot.send_message(
         message.chat.id, 

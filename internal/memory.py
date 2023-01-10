@@ -13,6 +13,8 @@ class Player:
             self.name = uuid
         else:
             self.name = name
+        self.answer = None
+        self.message = None
 
 class Game:
     def __init__(self, max_players=8, game_type=0):
@@ -73,13 +75,15 @@ class Game:
             self.PLAYERS["players_max"] = max_players
     
     def get_table_players(self):
-        return "\n".join([f'{i+1}. {g.name} {g.score} смеху@чков' for i, g in enumerate(self.players)])
+        return "\n".join([f'{i+1}. {g.name} {g.score} смеху@чков' \
+            for i, g in enumerate(self.PLAYERS["players"])])
 
-    def add_player(self, player):
+    def add_player(self, player, message):
         for g in self.PLAYERS["players"]:
             if g.uuid == player.uuid:
                 return False
         player.game_id = self._id
+        player.message = message
         self.PLAYERS["players"].append(player)
         return True
 
