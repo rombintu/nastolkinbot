@@ -1,5 +1,6 @@
 from datetime import datetime as dt
 from random import choice
+import os
 
 commands = [
     "/start - Помощь",
@@ -29,11 +30,17 @@ game_join = "🎲 *Присоединиться*"
 def get_last_update_format():
     return f"\n\t{dt.now().strftime('%d %B в %H:%M:%S')}"
 
-questions = [
-    f"question{i} ???" for i in range(1, 100)
-]
-
 def get_rand_question():
     return choice(questions)
 
-types_game = [("Смех😁ёчки", "rules1")]
+types_game = [("Смех😁ёчки", "Пока недоделано, но кароче нужно просто подставлять смешные фразы или слова в пропуски, разберешься")]
+
+def get_content(filename, packs=False):
+    path = os.path.join(os.getcwd(), filename)
+    if packs:
+        path = os.path.join(os.getcwd(), "packs", filename)
+    with open(path) as f: 
+        return f.read().splitlines()
+
+nicknames = get_content("nicknames.txt")
+questions = get_content("default.txt", packs=True)

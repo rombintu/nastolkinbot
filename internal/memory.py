@@ -1,6 +1,7 @@
 import shortuuid
 from loguru import logger as log
-from internal.content import types_game
+from internal.content import types_game, nicknames
+from random import choice
 
 log.level("DEBUG")
 
@@ -16,6 +17,7 @@ class Player:
             "answer": None, 
             "score": 0
             }
+        self.nick = choice(nicknames)
     
     @property
     def answer(self):
@@ -77,9 +79,9 @@ class Game:
             return False
         return True
     
-    def check_players_answers_by_Any(self):
-        if None not in self.get_players_answers():
-            return True
+    def check_players_answers_by_empty(self):
+        if self.get_players_answers().count(None) == len(self.get_players_answers()):
+            return True 
         return False
 
     def get_round(self):
@@ -120,7 +122,7 @@ class Game:
             self.PLAYERS["players_max"] = max_players
     
     def get_table_players(self):
-        return "\n".join([f'{i+1}. {pl.name} {pl.score} смеху@чков' \
+        return "\n".join([f'{i+1}. {pl.name} *{pl.nick.title()}*' \
             for i, pl in enumerate(self.PLAYERS["players"])])
 
     def add_player(self, player):
@@ -144,6 +146,11 @@ class Memory:
     def __init__(self):
         self.GAMES = {"games": [], "games_names": []}
 
+    def __str__(self) -> str:
+        string = ""
+        for game in self.get_games():
+            string += f"{game._id}: {len(game.get_players())}" 
+        return string 
 
     def get_games(self):
         for i, game in enumerate(self.GAMES["games"]):
@@ -182,7 +189,7 @@ class Memory:
     def delete_game_by_id(self, _id):
         for i, game in enumerate(self.GAMES["games"]):
             if game._id == _id:
-                for pl in game.players:
+                for pl in game.get_players():
                     pl.game_id = None
                 self.GAMES["games"].pop(i)
                 return game
