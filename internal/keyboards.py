@@ -44,8 +44,11 @@ def get_keyboard_game(game):
     return keyboard
 
 def get_keyboard_round(players):
-    keyboard = types.InlineKeyboardMarkup(row_width=3)
-    for player in players:
-        btn = types.InlineKeyboardButton(text=player.answer, callback_data=f"{player.answer}")
-        keyboard.add(btn)
+    # keyboard = types.InlineKeyboardMarkup(row_width=3)
+    # for player in players:
+    #     btn = types.InlineKeyboardButton(text=f"{player.answer}", callback_data=f"{player.answer}")
+    #     keyboard.add(btn)
+    keyboard = types.ReplyKeyboardMarkup(row_width=3)
+    for pl in players:
+        keyboard.add(pl.answer)
     return keyboard

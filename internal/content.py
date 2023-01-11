@@ -35,3 +35,5 @@ questions = [
 
 def get_rand_question():
     return choice(questions)
+
+types_game = [("Смех😁ёчки", "rules1")]

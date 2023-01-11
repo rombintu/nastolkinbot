@@ -28,14 +28,50 @@ def handle_error(err, too, description="unknown error"):
         parse_mode=MARKDOWN
     )
 
-def send_to_players(game, message, keyboard=None):
-    for g in game.get_players():
-        bot.send_message(g.uuid, message, reply_markup=keyboard)
+def send_to_players(message, game, text, keyboard=None, get_input=False, end_round=False):
+    if end_round:
+        game.inc_round()
+    log.debug(game.get_players_answers())
+    for player in game.get_players():
+        bot.send_message(player.uuid, text, reply_markup=keyboard)
+        if get_input:
+            message.chat.id = player.uuid
+            message.from_user.id = player.uuid
+            message.from_user.first_name = player.name
+            if end_round:
+                bot.register_next_step_handler(message, handle_end_round, player, game)
+            else:
+                bot.register_next_step_handler(message, handle_next_round, player, game)
 
-def input_from_players(game):
-    for pl in game.get_players():
-        pl.answer = pl.message.text
-        bot.register_next_step_handler(pl.message, handle_next_round, game) 
+def handle_next_round(message, player, game):
+    player.set_answer(message.text)
+    if game.check_players_answers_by_None():
+        send_to_players(message, game, 
+            f"Голосуй за самый смешной ответ в {game.get_round()}/{game.round_max} раунде", 
+            keyboard=kb.get_keyboard_round(game.get_players()), get_input=True, end_round=True)
+    else:
+        bot.send_message(player.uuid, "Отлично, ждем остальных!")
+
+def handle_end_round(message, player, game):
+    player.add_score(game.get_players_answers().count(player.answer))
+    log.debug(f"PLAYER: {player.name} SCORE: {player.score}")
+    bot.send_message(player.uuid, f"Итоги раунда:\n{game.get_table_players()}")
+    player.clear_answer()
+
+    if game.end():
+        bot.send_message(player.uuid, f"Игра закончена, расходимся!")
+        game.del_player(player)
+    else:
+        if game.check_players_answers_by_Any():
+            bot.send_message(player.uuid, "Отлично, ждем остальных!")
+        else:
+            send_to_players(message, game,  
+                f"Внимание раунд {game.get_round()}/{game.round_max}: {content.get_rand_question()}", get_input=True)
+
+# def handle_middleskip_round(message, player, game):
+#     # bot.send_message(player.uuid, 
+#     #     f"Внимание раунд {game.get_round()}/{game.round_max}: {content.get_rand_question()}")
+#     bot.register_next_step_handler(message, handle_next_round, player, game)
 
 @bot.message_handler(commands=['start', 'help'])
 def handle_message_start(message):
@@ -143,7 +179,7 @@ def games_callback(c: types.CallbackQuery):
                 pass
             player = mem.try_get_player_by_uuid(c.message.chat.id, c.message.chat.first_name)
             
-            if not game.add_player(player, c.message):
+            if not game.add_player(player):
                 bot.send_message(player.uuid, content.already_play)
                 return
             for pl in game.get_players():
@@ -188,15 +224,13 @@ def games_callback(c: types.CallbackQuery):
                 bot.send_message(c.message.chat.id, "Требуется минимум 2 игрока")
                 return
             game.change_status()
-            send_to_players(game, f"Итак, начнем игру\nСегодня с нами играют:\n{game.get_table_players()}")
-            send_to_players(game, f"Правила игры: {game.get_game_rule()}")
-            send_to_players(game, content.get_rand_question())
-            input_from_players(game)
+            send_to_players(c.message, game, f"Итак, начнем игру\nСегодня с нами играют:\n{game.get_table_players()}")
+            send_to_players(c.message, game, f"Правила игры: {game.get_game_rule()}")
+            send_to_players(c.message, game, 
+                f"Внимаение раунд {game.get_round()}/{game.round_max}: {content.get_rand_question()}",
+                get_input=True)
+            
     return
-
-def handle_next_round(message, game):
-    send_to_players(game, "Ответы других, голосуй за самый смешной", 
-        keyboard=kb.get_keyboard_round(game.get_players()))
 
 @bot.message_handler(commands=['create'])
 def handle_message_create(message):
@@ -205,7 +239,7 @@ def handle_message_create(message):
         bot.send_message(player.uuid, content.already_play)
         return
     game = memory.Game()
-    game.add_player(player, message)
+    game.add_player(player)
     mem.new_game(game)
     bot.send_message(
         message.chat.id, 

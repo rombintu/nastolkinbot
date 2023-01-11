@@ -1,33 +1,55 @@
 import shortuuid
 from loguru import logger as log
+from internal.content import types_game
 
-type_game = [("Смех😁ёчки", "rules1")]
 log.level("DEBUG")
 
 class Player:
     def __init__(self, uuid, name):
         self.uuid = uuid
-        self.score = 0
         self.game_id = None
         if not name:
             self.name = uuid
         else:
             self.name = name
-        self.answer = None
-        self.message = None
+        self.game = {
+            "answer": None, 
+            "score": 0
+            }
+    
+    @property
+    def answer(self):
+        return self.game["answer"]
+    @property
+    def score(self):
+        return self.game["score"]
+
+    def set_answer(self, new_answer):
+        self.game["answer"] = new_answer
+
+    def clear_answer(self):
+        self.set_answer(None)    
+
+    def add_score(self, score):
+        self.game["score"] = self.game["score"] + score
+
+    def end_game(self):
+        self.game_id = None
+        self.game["score"] = 0
 
 class Game:
-    def __init__(self, max_players=8, game_type=0):
+    def __init__(self, max_players=8, game_type=0, round_max=2):
         self.refresh_id()
         self.PLAYERS = {
             "players": [], 
-            # "players_count": 0,
             "players_max": max_players,
             }
         self.type = game_type
         self.status = "Ждем ⏰"
-        self.password = None
-        self.timeround = None
+        self.password = None # TODO
+        self.timeround = None # TODO
+        self.round = 1
+        self.round_max = round_max
 
     def info(self):
         buff = f"Игра: {self._id} 🎮\n"
@@ -47,9 +69,32 @@ class Game:
     def get_players_max(self):
         return self.PLAYERS["players_max"]
 
+    def get_players_answers(self):
+        return [player.answer for player in self.PLAYERS["players"]]
+
+    def check_players_answers_by_None(self):
+        if None in self.get_players_answers():
+            return False
+        return True
+    
+    def check_players_answers_by_Any(self):
+        if None not in self.get_players_answers():
+            return True
+        return False
+
+    def get_round(self):
+        return self.round
+
+    def inc_round(self):
+        self.round = self.round + 1
+
+    def end(self):
+        return self.round > self.round_max
+
     def get_password(self):
         if self.password == None: return "Нет"
         else: return self.password
+
     def update_password(self):
         self.password = shortuuid.ShortUUID().random(length=6) # TODO
 
@@ -57,8 +102,8 @@ class Game:
         return "ждем всех"
         # else: return self.timeround TODO
     
-    def get_game_type(self): return type_game[self.type][0]
-    def get_game_rule(self): return type_game[self.type][1]
+    def get_game_type(self): return types_game[self.type][0]
+    def get_game_rule(self): return types_game[self.type][1]
 
     def refresh_id(self):
         self._id = shortuuid.ShortUUID(
@@ -75,22 +120,21 @@ class Game:
             self.PLAYERS["players_max"] = max_players
     
     def get_table_players(self):
-        return "\n".join([f'{i+1}. {g.name} {g.score} смеху@чков' \
-            for i, g in enumerate(self.PLAYERS["players"])])
+        return "\n".join([f'{i+1}. {pl.name} {pl.score} смеху@чков' \
+            for i, pl in enumerate(self.PLAYERS["players"])])
 
-    def add_player(self, player, message):
-        for g in self.PLAYERS["players"]:
-            if g.uuid == player.uuid:
+    def add_player(self, player):
+        for pl in self.PLAYERS["players"]:
+            if pl.uuid == player.uuid:
                 return False
         player.game_id = self._id
-        player.message = message
         self.PLAYERS["players"].append(player)
         return True
 
     def del_player(self, player):
-        for i, g in enumerate(self.get_players()):
-            if g.uuid == player.uuid:
-                g.game_id = None
+        for i, pl in enumerate(self.get_players()):
+            if pl.uuid == player.uuid:
+                pl.end_game()
                 self.PLAYERS["players"].pop(i)
                 return True
         return False
