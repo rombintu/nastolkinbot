@@ -1,0 +1,13 @@
+[Unit]
+Description=Play with your friends!
+
+[Service]
+WorkingDirectory=/opt/BOT
+VIRTUAL_ENV=/opt/bot/venv
+Environment=PATH=$VIRTUAL_ENV/bin:$PATH
+ExecStart=/opt/BOT/venv/bin/python3 /opt/BOT/main.py
+ExecStop=/bin/kill -15 $MAINPID
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target

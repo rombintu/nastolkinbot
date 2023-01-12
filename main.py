@@ -44,7 +44,12 @@ def send_to_players(message, game, text, keyboard=None, get_input=False, end_rou
                 bot.register_next_step_handler(message, handle_next_round, player, game)
 
 def handle_next_round(message, player, game):
-    player.set_answer(message.text)
+    player_answer = message.text
+    if not player_answer or player_answer in game.get_players_answers() or len(player_answer) > 25:
+        bot.send_message(player.uuid, "Ожидается небольшой текст или кто то тебя опередил 🤔\nПопробуй еще раз!")
+        bot.register_next_step_handler(message, handle_next_round, player, game)
+        return
+    player.set_answer(player_answer)
     log.debug(f"{message.text} {player.answer}")
     if game.check_players_answers_by_None():
         send_to_players(message, game, 

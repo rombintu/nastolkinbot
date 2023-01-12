@@ -40,7 +40,7 @@ class Player:
         self.game["score"] = 0
 
 class Game:
-    def __init__(self, max_players=8, game_type=0, round_max=2):
+    def __init__(self, max_players=8, game_type=0, round_max=12):
         self.refresh_id()
         self.PLAYERS = {
             "players": [], 
