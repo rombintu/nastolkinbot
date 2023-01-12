@@ -81,7 +81,7 @@ def handle_end_round(message, player, game):
 #     #     f"Внимание раунд {game.get_round()}/{game.round_max}: {content.get_rand_question()}")
 #     bot.register_next_step_handler(message, handle_next_round, player, game)
 
-@bot.message_handler(commands=['start', 'help'])
+@bot.message_handler(commands=['start'])
 def handle_message_start(message):
     log.debug(str(mem))
     bot.send_message(
@@ -280,7 +280,8 @@ def handle_message_create(message):
 def handle_message_text(message):
     bot.send_message(
         message.chat.id, 
-        content.messages["start"]
+        content.messages["start"],
+        parse_mode=MARKDOWN
     )
 
 def main():

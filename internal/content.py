@@ -2,14 +2,16 @@ from datetime import datetime as dt
 from random import choice
 import os
 
+admin = "rombintu"
+src_link = "https://github.com/rombintu/nastolkinbot"
 commands = [
-    "/start - Помощь",
     "/create - Создать игру",
     "/games - Список созданных игр"
+    "/info -Информация о текущей игре" 
 ]
 
 messages = {
-    "start" : "Настолкин \n" + "\n".join(commands)
+    "start" : f"Привет! Создавай игру [/create] и зови друзей\n\nПри поломке пиши @{admin}\n*Ваши данные нигде не хранятся!*\n\n[Исходный код]({src_link})",
 }
 
 # ERRORS

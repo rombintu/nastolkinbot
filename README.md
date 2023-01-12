@@ -1,5 +1,5 @@
 ## Mr.Nastolkin_Bot
-Play with your friends!
+Play with your friends! [Try it!](https://t.me/mr_nastolkin_bot)
 
 ### Install (Debian/Centos - like)
 ```bash
@@ -11,3 +11,6 @@ pip install -r deps.txt
 sudo cp nastolkinbot.service /etc/systemd/system/
 sudo systemctl enable --now nastolkinbot.service
 ```
+
+### Screenshot
+![img](./screenshots/image_1.png)
