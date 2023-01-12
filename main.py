@@ -72,7 +72,7 @@ def handle_end_round(message, player, game):
     # else:
     elif game.check_players_answers_by_empty():
         send_to_players(message, game,  
-            f"Внимание, раунд {game.get_round()}/{game.round_max}: {content.get_rand_question()}", get_input=True)
+            f"Внимание, раунд {game.get_round()}/{game.round_max}: {game.pack.get_rand_question()}", get_input=True)
     else:
         bot.send_message(player.uuid, "Отлично, ждем остальных!", reply_markup=types.ReplyKeyboardRemove())
 
@@ -236,10 +236,69 @@ def games_callback(c: types.CallbackQuery):
             send_to_players(c.message, game, f"Итак, начнем игру\nСегодня с нами играют:\n{game.get_table_players()}")
             send_to_players(c.message, game, f"Правила игры: {game.get_game_rule()}")
             send_to_players(c.message, game, 
-                f"Внимание, раунд {game.get_round()}/{game.round_max}: {content.get_rand_question()}",
+                f"Внимание, раунд {game.get_round()}/{game.round_max}: {game.pack.get_rand_question()}",
                 get_input=True)
             
     return
+
+@bot.message_handler(commands=['mypacks'])
+def handle_message_create(message):
+    player = mem.try_get_player_by_uuid(message.from_user.id, message.from_user.first_name)
+    packs = mem.get_packs_by_uuid(player.uuid)
+    if not packs:
+        bot.send_message(
+            message.chat.id, 
+            "У вас нет своих сборок, можете создать /newpack"
+        )
+    else:
+        bot.send_message(
+            message.chat.id, 
+            "Мои сборки",
+            reply_markup=kb.get_keyboard_packs(packs)
+        )
+
+@bot.message_handler(commands=['newpack'])
+def handle_message_create(message):
+    player = mem.try_get_player_by_uuid(message.from_user.id, message.from_user.first_name)
+    if player.game_id:
+        bot.send_message(player.uuid, content.already_play)
+        return
+    bot.send_message(message.chat.id, "Выбери тип игры из предложенных", reply_markup=kb.get_keyboard_packs_type_game())
+    bot.register_next_step_handler(message, create_pack_type)
+
+def create_pack_type(message):
+    game_type = content.get_game_type(message.text)
+    if game_type < 0:
+        bot.send_message(message.chat.id, "Такого типа игры не существует")
+        return
+    new_pack = content.Pack("", message.chat.id, game_type, "", new=True)
+    bot.send_message(message.chat.id, "Напиши название сборки")
+    bot.register_next_step_handler(message, create_pack_title, new_pack)
+
+def create_pack_title(message, new_pack):
+    title = message.text
+    long_title = title.split(" ")
+    if len(long_title) > 1:
+        title = "-".join(long_title) 
+    if not title or len(title) > 20 or mem.check_pack_exists(title):
+        bot.send_message(message.chat.id, "Ожидается недлинное название либо такой уже существует, попробуй другое")
+        bot.register_next_step_handler(message, create_pack_title, new_pack)
+        return
+    new_pack.title = title
+    bot.send_message(message.chat.id, f"Теперь я жду файл формата .TXT")
+    bot.register_next_step_handler(message, create_pack_content, new_pack)
+
+def create_pack_content(message, new_pack):
+    new_pack.filename = f"{new_pack.title}_{new_pack.owner}.txt"
+    mem.add_pack(new_pack)
+    file_id = bot.get_file(message.document.file_id)
+    if not file_id:
+        bot.send_message(message.chat.id, f"Я все еще жду файл формата .TXT")
+        bot.register_next_step_handler(message, create_pack_content, new_pack)
+        return 
+    data = bot.download_file(file_id.file_path)
+    content.create_new_pack(mem.packs, data)
+    bot.send_message(message.chat.id, f"Готово, новая сборка: {new_pack.title} создана")
 
 @bot.message_handler(commands=['create'])
 def handle_message_create(message):
@@ -247,7 +306,7 @@ def handle_message_create(message):
     if player.game_id:
         bot.send_message(player.uuid, content.already_play)
         return
-    game = memory.Game()
+    game = memory.Game(mem.packs[0])
     game.add_player(player)
     mem.new_game(game)
     bot.send_message(

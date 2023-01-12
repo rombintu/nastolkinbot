@@ -1,6 +1,6 @@
 import shortuuid
 from loguru import logger as log
-from internal.content import types_game, nicknames
+from internal.content import types_game, nicknames, get_all_packs
 from random import choice
 
 log.level("DEBUG")
@@ -18,6 +18,7 @@ class Player:
             "score": 0
             }
         self.nick = choice(nicknames)
+        self.packs = []
     
     @property
     def answer(self):
@@ -39,8 +40,11 @@ class Player:
         self.game_id = None
         self.game["score"] = 0
 
+    def get_packs(self):
+        pass
+
 class Game:
-    def __init__(self, max_players=8, game_type=0, round_max=12):
+    def __init__(self, pack, max_players=8, game_type=0, round_max=12):
         self.refresh_id()
         self.PLAYERS = {
             "players": [], 
@@ -50,6 +54,7 @@ class Game:
         self.status = "Ждем ⏰"
         self.password = None # TODO
         self.timeround = None # TODO
+        self.pack = pack
         self.round = 1
         self.round_max = round_max
 
@@ -73,6 +78,9 @@ class Game:
 
     def get_players_answers(self):
         return [player.answer for player in self.PLAYERS["players"]]
+
+    def get_pack_title(self):
+        return self.pack.title.title()
 
     def check_players_answers_by_None(self):
         if None in self.get_players_answers():
@@ -104,8 +112,8 @@ class Game:
         return "ждем всех"
         # else: return self.timeround TODO
     
-    def get_game_type(self): return types_game[self.type][0]
-    def get_game_rule(self): return types_game[self.type][1]
+    def get_game_type(self): return types_game[self.pack.game_type][0]
+    def get_game_rule(self): return types_game[self.pack.game_type][1]
 
     def refresh_id(self):
         self._id = shortuuid.ShortUUID(
@@ -140,11 +148,12 @@ class Game:
                 self.PLAYERS["players"].pop(i)
                 return True
         return False
-
+    
     
 class Memory:
     def __init__(self):
         self.GAMES = {"games": [], "games_names": []}
+        self.packs = get_all_packs()
 
     def __str__(self) -> str:
         string = ""
@@ -195,5 +204,22 @@ class Memory:
                 return game
         log.debug(f"(After delete) All Games: {self.get_games_names()}")
         return None
+    
+    def refresh_packs(self):
+        self.packs = get_all_packs()
 
-   
+    def add_pack(self, pack):
+        self.packs.append(pack)
+
+    def check_pack_exists(self, pack_name):
+        for pack in self.packs:
+            if pack.title == pack_name:
+                return True
+        return False
+
+    def get_packs_by_uuid(self, uuid):
+        packs = []
+        for pack in self.packs:
+            if pack.owner == uuid:
+                packs.append(pack)
+        return packs

@@ -1,6 +1,6 @@
 from datetime import datetime as dt
 from random import choice
-import os
+import os, json
 
 admin = "rombintu"
 src_link = "https://github.com/rombintu/nastolkinbot"
@@ -32,17 +32,66 @@ game_join = "🎲 *Присоединиться*"
 def get_last_update_format():
     return f"\n\t{dt.now().strftime('%d %B в %H:%M:%S')}"
 
-def get_rand_question():
-    return choice(questions)
-
-types_game = [("Смех😁ёчки", "Пока недоделано, но кароче нужно просто подставлять смешные фразы или слова в пропуски, разберешься")]
-
 def get_content(filename, packs=False):
     path = os.path.join(os.getcwd(), filename)
     if packs:
         path = os.path.join(os.getcwd(), "packs", filename)
-    with open(path) as f: 
+    with open(path, "r") as f: 
         return f.read().splitlines()
 
+class Pack:
+    def __init__(self, title, owner, game_type, filename, new=False):
+        self.title = title
+        self.owner = owner
+        self.game_type = game_type
+        self.filename = filename
+        if new:
+            self.questions = []
+        else:
+            self.questions = self.get_questions() 
+    
+    def get_questions(self):
+        return get_content(self.filename, packs=True)
+
+    def get_rand_question(self):
+        return choice(self.questions)
+
+def get_all_packs():
+    packs = []
+    with open(os.path.join(os.getcwd(), 'packs.json'), "r") as json_file:
+        for pack in json.load(json_file):
+            packs.append(Pack(
+                pack["title"],
+                pack["owner"],
+                pack["game_type"],
+                pack["filename"],
+            ))
+    return packs        
+
+def create_new_pack(packs, data):
+    js_data = []
+    for pack in packs:
+        js_data.append(
+            {
+                "title": pack.title,
+                "game_type": pack.game_type,
+                "owner": pack.owner,
+                "filename": pack.filename,
+            }
+        )
+    with open(os.path.join(os.getcwd(), 'packs.json'), "w") as json_file:
+        json_file.write(json.dumps(js_data, indent=4))
+    with open(os.path.join(os.getcwd(), 'packs', pack.filename), "wb") as data_file:
+        data_file.write(data)
+
+types_game = [
+    ["Смех😁ёчки", "Кароче нужно просто подставлять смешные фразы в пропуски, разберешься"]
+]
+
+def get_game_type(game_type_name):
+    for i, t in  enumerate(types_game):
+        if t[0] == game_type_name:
+            return i
+    return -1
+
 nicknames = get_content("nicknames.txt")
-questions = get_content("default.txt", packs=True)

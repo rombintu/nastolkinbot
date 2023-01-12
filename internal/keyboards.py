@@ -1,4 +1,5 @@
 from telebot import types
+from internal.content import types_game
 
 def get_keyboard_connecting(game):
     keyboard = types.InlineKeyboardMarkup()
@@ -32,6 +33,7 @@ def get_keyboard_games(games, start_i=0):
 def get_keyboard_game(game):
     btn_game_type = types.InlineKeyboardButton(text=f"{game.get_game_type()}", callback_data=f"game_type_{game._id}")
     btn_game_max_players = types.InlineKeyboardButton(text=f"Игроков: {game.get_players_max()}", callback_data=f"game_max_players_{game._id}")
+    btn_game_pack = types.InlineKeyboardButton(text=f"Сборка: {game.get_pack_title()}", callback_data=f"game_pack_update_{game._id}")
     btn_game_password = types.InlineKeyboardButton(text=f"Пароль: {game.get_password()}", callback_data=f"game_password_update_{game._id}")
     btn_game_timeround = types.InlineKeyboardButton(text=f"Раунд: {game.get_timeround()}", callback_data=f"game_timeround_update_{game._id}")
     btn_game_delete = types.InlineKeyboardButton(text="Удалить 🚮", callback_data=f"game_delete_{game._id}")
@@ -39,6 +41,7 @@ def get_keyboard_game(game):
 
     keyboard = types.InlineKeyboardMarkup(row_width=3)
     keyboard.row(btn_game_type, btn_game_max_players)
+    keyboard.row(btn_game_pack)
     keyboard.row(btn_game_password, btn_game_timeround)
     keyboard.row(btn_game_delete, btn_game_start)
     return keyboard
@@ -51,4 +54,22 @@ def get_keyboard_round(players):
     keyboard = types.ReplyKeyboardMarkup(row_width=3)
     for pl in players:
         keyboard.add(pl.answer)
+    return keyboard
+
+def get_keyboard_packs_type_game():
+    keyboard = types.ReplyKeyboardMarkup()
+    for t in types_game:
+        keyboard.add(t[0])
+    return keyboard
+
+def get_keyboard_packs(packs):
+    keyboard = types.InlineKeyboardMarkup(row_width=3)
+    for pack in packs:
+        keyboard.add(
+            types.InlineKeyboardButton(
+                text=f"{pack.title}", 
+                callback_data=f"pack_{pack.title}")
+        )
+    btn_refresh = types.InlineKeyboardButton(text="🔄", callback_data=f"pack_refresh")
+    keyboard.add(btn_refresh)
     return keyboard
