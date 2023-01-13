@@ -1,7 +1,9 @@
 from datetime import datetime as dt
 from random import choice
 import os, json
+from loguru import logger as log
 
+log.level("DEBUG")
 admin = "rombintu"
 src_link = "https://github.com/rombintu/nastolkinbot"
 commands = [
@@ -11,7 +13,7 @@ commands = [
 ]
 
 messages = {
-    "start" : f"Привет! Создавай игру [/create] и зови друзей\n\nПри поломке пиши @{admin}\n*Ваши данные нигде не хранятся!*\n\n[Исходный код]({src_link})",
+    "start" : f"Привет! Создавай игру [/create] и зови друзей или присоединяйся [/games]\n\nПри поломке пиши @{admin}\n*Ваши данные нигде не хранятся!*",
 }
 
 # ERRORS
@@ -36,9 +38,12 @@ def get_content(filename, packs=False):
     path = os.path.join(os.getcwd(), filename)
     if packs:
         path = os.path.join(os.getcwd(), "packs", filename)
-    with open(path, "r") as f: 
-        return f.read().splitlines()
-
+    with open(path, "r") as f:
+        try:
+            return f.read().splitlines()
+        except Exception as err:
+            log.debug(err)
+            return []
 class Pack:
     def __init__(self, title, owner, game_type, filename, new=False):
         self.title = title
@@ -49,12 +54,27 @@ class Pack:
             self.questions = []
         else:
             self.questions = self.get_questions() 
+        
     
     def get_questions(self):
         return get_content(self.filename, packs=True)
 
+    def get_size(self):
+        self.questions = self.get_questions() 
+        return len(self.questions)
+
     def get_rand_question(self):
         return choice(self.questions)
+
+    def get_file(self):
+        return open(os.path.join(os.getcwd(), "packs", self.filename), "rb")
+
+    def delete(self):
+        err = os.remove(os.path.join(os.getcwd(), "packs", self.filename))
+        if err:
+            log.debug(err)
+            return False
+        return True
 
 def get_all_packs():
     packs = []
@@ -67,6 +87,20 @@ def get_all_packs():
                 pack["filename"],
             ))
     return packs        
+
+def update_pack_file(packs):
+    js_data = []
+    for pack in packs:
+        js_data.append(
+            {
+                "title": pack.title,
+                "game_type": pack.game_type,
+                "owner": pack.owner,
+                "filename": pack.filename,
+            }
+        )
+    with open(os.path.join(os.getcwd(), 'packs.json'), "w") as json_file:
+        json_file.write(json.dumps(js_data, indent=4))
 
 def create_new_pack(packs, data):
     js_data = []

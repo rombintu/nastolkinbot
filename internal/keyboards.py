@@ -63,13 +63,25 @@ def get_keyboard_packs_type_game():
     return keyboard
 
 def get_keyboard_packs(packs):
-    keyboard = types.InlineKeyboardMarkup(row_width=3)
+    keyboard = types.InlineKeyboardMarkup()
     for pack in packs:
         keyboard.add(
             types.InlineKeyboardButton(
                 text=f"{pack.title}", 
                 callback_data=f"pack_{pack.title}")
         )
-    btn_refresh = types.InlineKeyboardButton(text="🔄", callback_data=f"pack_refresh")
+    btn_refresh = types.InlineKeyboardButton(text="🔄", callback_data=f"packs_refresh")
     keyboard.add(btn_refresh)
+    return keyboard
+
+def get_keyboard_pack(pack):
+    keyboard = types.InlineKeyboardMarkup()
+    
+    btn_download = types.InlineKeyboardButton(text="Получить файл", callback_data=f"pack_download_{pack.title}")
+    btn_upload = types.InlineKeyboardButton(text="Обновить файл", callback_data=f"pack_upload_{pack.title}")
+    btn_back = types.InlineKeyboardButton(text="↩️", callback_data=f"packs_refresh")
+    btn_delete = types.InlineKeyboardButton(text="❌", callback_data=f"pack_delete_{pack.title}")
+    keyboard.add(btn_download)
+    keyboard.add(btn_upload)
+    keyboard.add(btn_delete, btn_back)
     return keyboard

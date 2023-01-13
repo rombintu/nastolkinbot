@@ -1,6 +1,6 @@
 import shortuuid
 from loguru import logger as log
-from internal.content import types_game, nicknames, get_all_packs
+from internal.content import types_game, nicknames, get_all_packs, update_pack_file
 from random import choice
 
 log.level("DEBUG")
@@ -61,6 +61,7 @@ class Game:
     def info(self):
         buff = f"Игра: {self._id} 🎮\n"
         buff += f"Тип: {self.get_game_type()}\n"
+        buff += f"Сборка: {self.pack.title.title()}\n"
         buff += f"Игроки: {self.get_players_count()}/{self.get_players_max()}\n"
         buff += f"Пароль: {self.get_password()}\n"
         buff += f"Раунд: {self.get_timeround()}\n"
@@ -107,6 +108,11 @@ class Game:
 
     def update_password(self):
         self.password = shortuuid.ShortUUID().random(length=6) # TODO
+
+    def update_pack(self, packs): # TODO
+        for i, p in enumerate(packs):
+            if self.pack.title == p.title:
+                self.pack = packs[(i+1) % len(packs)]
 
     def get_timeround(self):
         return "ждем всех"
@@ -217,9 +223,33 @@ class Memory:
                 return True
         return False
 
+    def get_default_pack(self):
+        return self.packs[0]
+
     def get_packs_by_uuid(self, uuid):
         packs = []
         for pack in self.packs:
             if pack.owner == uuid:
                 packs.append(pack)
         return packs
+
+    def get_pack_by_title(self, title):
+        for pack in self.packs:
+            if pack.title == title:
+                return pack
+        return None
+
+    def delete_pack_by_title(self, title):
+        for i, pack in enumerate(self.packs):
+            if pack.title == title:
+                if not pack.delete():
+                    return False
+                self.packs.pop(i)
+                update_pack_file(self.packs)
+                return True
+        return False
+
+    def limit_packs_by_uuid(self, uuid):
+        if len(self.get_packs_by_uuid(uuid)) >= 3:
+            return True
+        return False

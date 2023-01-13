@@ -170,7 +170,21 @@ def games_callback(c: types.CallbackQuery):
             bot.edit_message_text(f"Игра: *{game._id}*",
                 c.from_user.id, c.message.id, 
                 reply_markup=kb.get_keyboard_game(game), parse_mode=MARKDOWN)
-        
+        case ["game", "pack", "update", _]:
+            game_id = data[-1]
+            game = mem.get_game_by_id(game_id)
+            if not game:
+                bot.send_message(c.message.chat.id, content.game_not_found.format(game_id))
+                return
+            player = mem.try_get_player_by_uuid(c.message.chat.id, c.message.chat.first_name)
+            packs = mem.get_packs_by_uuid(player.uuid)
+            packs.append(mem.get_default_pack())
+            game.update_pack(packs)
+
+            bot.edit_message_text(f"Игра: *{game._id}*",
+                c.from_user.id, c.message.id, 
+                reply_markup=kb.get_keyboard_game(game), parse_mode=MARKDOWN)
+
         case ["game", "connect", _]:            
             game_id = data[-1]
             game = mem.get_game_by_id(game_id)
@@ -229,6 +243,9 @@ def games_callback(c: types.CallbackQuery):
             if not game:
                 bot.send_message(c.message.chat.id, content.game_not_found.format(game_id))
                 return
+            elif game.pack.get_size() == 0:
+                bot.send_message(c.message.chat.id, "Данная сборка неисправна, обновите или удалите /mypacks")
+                return
             elif game.get_players_count() < 2:
                 bot.send_message(c.message.chat.id, "Чтобы начать игру требуется минимум 2 игрока")
                 return
@@ -238,6 +255,81 @@ def games_callback(c: types.CallbackQuery):
             send_to_players(c.message, game, 
                 f"Внимание, раунд {game.get_round()}/{game.round_max}: {game.pack.get_rand_question()}",
                 get_input=True)
+        case ["packs", "refresh"]:
+            player = mem.try_get_player_by_uuid(c.message.chat.id, c.message.chat.first_name)
+            packs = mem.get_packs_by_uuid(player.uuid)
+            if not packs:
+                bot.edit_message_text(
+                    "У вас нет своих сборок, можете создать /newpack",
+                    c.message.chat.id, c.message.id,
+                )
+            else:
+                bot.edit_message_text(
+                    "Мои сборки",
+                    c.message.chat.id, c.message.id,
+                    reply_markup=kb.get_keyboard_packs(packs)
+                )
+        case ["pack", _]:
+            pack = mem.get_pack_by_title(data[-1])
+            if not pack:
+                bot.send_message(
+                    c.message.chat.id, 
+                    "Не могу найти эту сборку, попробуйте позже"
+                )
+            count_questions = pack.get_size()
+            if not count_questions:
+                count_questions = "Неизвестно"
+                bot.send_message(
+                    c.message.chat.id, 
+                    "Данная сборка неисправна, обновите или удалите"
+                )
+            bot.edit_message_text(
+                    f"Сборка: {pack.title}\nВопросов: {count_questions}",
+                    c.message.chat.id, c.message.id,
+                    reply_markup=kb.get_keyboard_pack(pack)
+                )
+        case ["pack", "download", _]:
+            pack = mem.get_pack_by_title(data[-1])
+            if not pack:
+                bot.send_message(
+                    c.message.chat.id, 
+                    "Не могу найти эту сборку, попробуйте позже"
+                )
+            bot.send_document(c.message.chat.id, pack.get_file())
+        case ["pack", "upload", _]:
+            pack = mem.get_pack_by_title(data[-1])
+            if not pack:
+                bot.send_message(
+                    c.message.chat.id, 
+                    "Не могу найти эту сборку, попробуйте позже"
+                )
+            bot.send_message(c.message.chat.id, "Теперь я жду файл формата .TXT")
+            bot.register_next_step_handler(c.message, create_pack_content, pack)
+        case ["pack", "delete", _]:
+            pack = mem.get_pack_by_title(data[-1])
+            if not pack:
+                bot.send_message(
+                    c.message.chat.id, 
+                    "Не могу найти эту сборку, попробуйте позже"
+                )
+            ok = mem.delete_pack_by_title(pack.title)
+            if not ok:
+                bot.send_message(
+                    c.message.chat.id, 
+                    "Внутренняя ошибка"
+                )
+                return
+            bot.send_message(c.message.chat.id, f"Сборка [{pack.title}] удалена")
+            player = mem.try_get_player_by_uuid(c.message.chat.id, c.message.chat.first_name)
+            packs = mem.get_packs_by_uuid(player.uuid)
+            if not packs:
+                bot.delete_message(c.message.chat.id, c.message.id)
+            else:
+                bot.edit_message_text(
+                    "Мои сборки",
+                    c.message.chat.id, c.message.id,
+                    reply_markup=kb.get_keyboard_packs(packs)
+                )
             
     return
 
@@ -263,6 +355,9 @@ def handle_message_create(message):
     if player.game_id:
         bot.send_message(player.uuid, content.already_play)
         return
+    elif mem.limit_packs_by_uuid(player.uuid):
+        bot.send_message(player.uuid, "Лимит своих сборок достигнут, удали или измени уже созданные: /mypacks")
+        return
     bot.send_message(message.chat.id, "Выбери тип игры из предложенных", reply_markup=kb.get_keyboard_packs_type_game())
     bot.register_next_step_handler(message, create_pack_type)
 
@@ -272,7 +367,7 @@ def create_pack_type(message):
         bot.send_message(message.chat.id, "Такого типа игры не существует")
         return
     new_pack = content.Pack("", message.chat.id, game_type, "", new=True)
-    bot.send_message(message.chat.id, "Напиши название сборки")
+    bot.send_message(message.chat.id, "Напиши название сборки", reply_markup=types.ReplyKeyboardRemove())
     bot.register_next_step_handler(message, create_pack_title, new_pack)
 
 def create_pack_title(message, new_pack):
@@ -291,14 +386,18 @@ def create_pack_title(message, new_pack):
 def create_pack_content(message, new_pack):
     new_pack.filename = f"{new_pack.title}_{new_pack.owner}.txt"
     mem.add_pack(new_pack)
+    if not message.document:
+        bot.send_message(message.chat.id, f"Я все еще жду файл формата .TXT")
+        bot.register_next_step_handler(message, create_pack_content, new_pack)
+        return 
     file_id = bot.get_file(message.document.file_id)
-    if not file_id:
+    if file_id.file_path.split(".")[-1] != "txt":
         bot.send_message(message.chat.id, f"Я все еще жду файл формата .TXT")
         bot.register_next_step_handler(message, create_pack_content, new_pack)
         return 
     data = bot.download_file(file_id.file_path)
     content.create_new_pack(mem.packs, data)
-    bot.send_message(message.chat.id, f"Готово, новая сборка: {new_pack.title} создана")
+    bot.send_message(message.chat.id, f"Готово, сборка: {new_pack.title} создана или обновлена")
 
 @bot.message_handler(commands=['create'])
 def handle_message_create(message):
