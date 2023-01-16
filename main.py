@@ -31,7 +31,6 @@ def handle_error(err, too, description="unknown error"):
 def send_to_players(message, game, text, keyboard=None, get_input=False, end_round=False):
     if end_round:
         game.inc_round()
-    log.debug(f"ANSWERS: {game.get_players_answers()}")
     for player in game.get_players():
         bot.send_message(player.uuid, text, reply_markup=keyboard, parse_mode=MARKDOWN)
         if get_input:
@@ -50,7 +49,6 @@ def handle_next_round(message, player, game):
         bot.register_next_step_handler(message, handle_next_round, player, game)
         return
     player.set_answer(player_answer)
-    log.debug(f"{message.text} {player.answer}")
     if game.check_players_answers_by_None():
         send_to_players(message, game, 
             f"Голосуй за самый смешной ответ", 
@@ -60,17 +58,14 @@ def handle_next_round(message, player, game):
 
 def handle_end_round(message, player, game):
     player.add_score(game.get_players_answers().count(player.answer)) # TODO
-    log.debug(f"PLAYER: {player.name} SCORE: {player.score}")
-    
     player.clear_answer()
-    log.debug(f"ANSWERS AFTER CLEAR: {game.get_players_answers()}")
 
     if game.end():
         bot.send_message(player.uuid, f"Игра закончена, расходимся!", reply_markup=types.ReplyKeyboardRemove())
         game.del_player(player)
         return
-    # else:
     elif game.check_players_answers_by_empty():
+        send_to_players(message, game, f"Итоги раунда:\n{game.get_table_players()}")
         send_to_players(message, game,  
             f"Внимание, раунд {game.get_round()}/{game.round_max}: {game.pack.get_rand_question()}", get_input=True)
     else:
@@ -86,7 +81,8 @@ def handle_message_start(message):
     log.debug(str(mem))
     bot.send_message(
         message.chat.id, 
-        content.messages["start"]
+        content.messages["start"],
+        parse_mode=MARKDOWN
     )
 
 @bot.message_handler(commands=['games'])
@@ -221,9 +217,16 @@ def games_callback(c: types.CallbackQuery):
             if not game.del_player(player):
                 bot.send_message(player.uuid, content.not_playing.format(game._id))
                 return
-            for g in game.get_players():
-                if g.uuid == player.uuid: continue
-                bot.send_message(g.uuid, f"Отключился игрок: {c.message.chat.first_name}")
+            the_end = False
+            if len(game.get_players()) < 2:
+                the_end = True
+                game = mem.delete_game_by_id(game_id)
+            for pl in game.get_players():
+                if pl.uuid == player.uuid: continue
+                bot.send_message(pl.uuid, f"Отключился игрок: {c.message.chat.first_name}")
+                if the_end:
+                    bot.send_message(pl.uuid, f"Игроков стало меньше 2х, игра была удалена")
+                    game.del_player(pl)
             bot.send_message(c.message.chat.id, f"Вы покинули игру: {game._id}")
             bot.delete_message(c.message.chat.id, c.message.message_id)
         case ["game", "delete", _]:
@@ -244,7 +247,7 @@ def games_callback(c: types.CallbackQuery):
                 bot.send_message(c.message.chat.id, content.game_not_found.format(game_id))
                 return
             elif game.pack.get_size() == 0:
-                bot.send_message(c.message.chat.id, "Данная сборка неисправна, обновите или удалите /mypacks")
+                bot.send_message(c.message.chat.id, content.pack_error.format(game.pack.title, content.pack_help))
                 return
             elif game.get_players_count() < 2:
                 bot.send_message(c.message.chat.id, "Чтобы начать игру требуется минимум 2 игрока")
@@ -281,7 +284,7 @@ def games_callback(c: types.CallbackQuery):
                 count_questions = "Неизвестно"
                 bot.send_message(
                     c.message.chat.id, 
-                    "Данная сборка неисправна, обновите или удалите"
+                    content.pack_error.format(pack.title, content.pack_help)
                 )
             bot.edit_message_text(
                     f"Сборка: {pack.title}\nВопросов: {count_questions}",
@@ -296,15 +299,15 @@ def games_callback(c: types.CallbackQuery):
                     "Не могу найти эту сборку, попробуйте позже"
                 )
             bot.send_document(c.message.chat.id, pack.get_file())
-        case ["pack", "upload", _]:
-            pack = mem.get_pack_by_title(data[-1])
-            if not pack:
-                bot.send_message(
-                    c.message.chat.id, 
-                    "Не могу найти эту сборку, попробуйте позже"
-                )
-            bot.send_message(c.message.chat.id, "Теперь я жду файл формата .TXT")
-            bot.register_next_step_handler(c.message, create_pack_content, pack)
+        # case ["pack", "upload", _]:
+        #     pack = mem.get_pack_by_title(data[-1])
+        #     if not pack:
+        #         bot.send_message(
+        #             c.message.chat.id, 
+        #             "Не могу найти эту сборку, попробуйте позже"
+        #         )
+        #     bot.send_message(c.message.chat.id, "Теперь я жду файл формата .TXT" + f"\n{content.pack_help}")
+        #     bot.register_next_step_handler(c.message, create_pack_content, pack, update=True)
         case ["pack", "delete", _]:
             pack = mem.get_pack_by_title(data[-1])
             if not pack:
@@ -356,7 +359,7 @@ def handle_message_create(message):
         bot.send_message(player.uuid, content.already_play)
         return
     elif mem.limit_packs_by_uuid(player.uuid):
-        bot.send_message(player.uuid, "Лимит своих сборок достигнут, удали или измени уже созданные: /mypacks")
+        bot.send_message(player.uuid, "Лимит своих сборок достигнут, удали или пересоздай уже созданные: /mypacks")
         return
     bot.send_message(message.chat.id, "Выбери тип игры из предложенных", reply_markup=kb.get_keyboard_packs_type_game())
     bot.register_next_step_handler(message, create_pack_type)
@@ -376,28 +379,28 @@ def create_pack_title(message, new_pack):
     if len(long_title) > 1:
         title = "-".join(long_title) 
     if not title or len(title) > 20 or mem.check_pack_exists(title):
-        bot.send_message(message.chat.id, "Ожидается недлинное название либо такой уже существует, попробуй другое")
+        bot.send_message(message.chat.id, "Ожидается недлинное название, либо такое уже существует, попробуй другое")
         bot.register_next_step_handler(message, create_pack_title, new_pack)
         return
     new_pack.title = title
-    bot.send_message(message.chat.id, f"Теперь я жду файл формата .TXT")
+    bot.send_message(message.chat.id, "Теперь я жду файл формата .TXT" + f"\n{content.pack_help}")
     bot.register_next_step_handler(message, create_pack_content, new_pack)
 
 def create_pack_content(message, new_pack):
     new_pack.filename = f"{new_pack.title}_{new_pack.owner}.txt"
     mem.add_pack(new_pack)
     if not message.document:
-        bot.send_message(message.chat.id, f"Я все еще жду файл формата .TXT")
+        bot.send_message(message.chat.id, "Я все еще жду файл формата .TXT" + f"\n{content.pack_help}")
         bot.register_next_step_handler(message, create_pack_content, new_pack)
         return 
     file_id = bot.get_file(message.document.file_id)
     if file_id.file_path.split(".")[-1] != "txt":
-        bot.send_message(message.chat.id, f"Я все еще жду файл формата .TXT")
+        bot.send_message(message.chat.id, "Я все еще жду файл формата .TXT" + f"\n{content.pack_help}")
         bot.register_next_step_handler(message, create_pack_content, new_pack)
         return 
     data = bot.download_file(file_id.file_path)
     content.create_new_pack(mem.packs, data)
-    bot.send_message(message.chat.id, f"Готово, сборка: {new_pack.title} создана или обновлена")
+    bot.send_message(message.chat.id, f"Готово, сборка: {new_pack.title} создана")
 
 @bot.message_handler(commands=['create'])
 def handle_message_create(message):

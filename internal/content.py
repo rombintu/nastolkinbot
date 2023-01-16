@@ -13,7 +13,12 @@ commands = [
 ]
 
 messages = {
-    "start" : f"Привет! Создавай игру [/create] и зови друзей или присоединяйся [/games]\n\nПри поломке пиши @{admin}\n*Ваши данные нигде не хранятся!*",
+    "start" : f"""Присоединяйся к друзьями /games
+Создавай игру /create и зови друзей 
+Создай свой пак! /mypacks
+    
+    При поломке пиши @{admin}
+    *Ваши данные нигде не хранятся!*"""
 }
 
 # ERRORS
@@ -24,12 +29,15 @@ error = {
 }
 
 already_play = "Вы уже учавствуете в другой игре /info"
-devtodo = "Изменение настройки пока что декоративное. В разработке."
+devtodo = "Изменение настройки пока что декоративное. В разработке..."
 game_not_found = "Этой игры: {}, уже не существует"
 game_full_players = "Игра: {} заполнена"
 game_to_play = "Игра: {} уже идет"
 not_playing = "Вы не учавствуете в игре: {}\n/games"
 game_join = "🎲 *Присоединиться*"
+pack_help = "Ожидается, что файл будет состоять из вопросов, которые разделяются строчками"
+pack_error = "Сборка [{}] неисправна, пересоздай ее /mypacks\n{}"
+            
 
 def get_last_update_format():
     return f"\n\t{dt.now().strftime('%d %B в %H:%M:%S')}"
@@ -38,12 +46,12 @@ def get_content(filename, packs=False):
     path = os.path.join(os.getcwd(), filename)
     if packs:
         path = os.path.join(os.getcwd(), "packs", filename)
-    with open(path, "r") as f:
-        try:
+    try:
+        with open(path, "r") as f:
             return f.read().splitlines()
-        except Exception as err:
-            log.debug(err)
-            return []
+    except Exception as err:
+        log.debug(err)
+        return []
 class Pack:
     def __init__(self, title, owner, game_type, filename, new=False):
         self.title = title
@@ -70,11 +78,10 @@ class Pack:
         return open(os.path.join(os.getcwd(), "packs", self.filename), "rb")
 
     def delete(self):
-        err = os.remove(os.path.join(os.getcwd(), "packs", self.filename))
-        if err:
+        try:
+            os.remove(os.path.join(os.getcwd(), "packs", self.filename))
+        except Exception as err:
             log.debug(err)
-            return False
-        return True
 
 def get_all_packs():
     packs = []

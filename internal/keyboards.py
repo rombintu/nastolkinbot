@@ -78,10 +78,8 @@ def get_keyboard_pack(pack):
     keyboard = types.InlineKeyboardMarkup()
     
     btn_download = types.InlineKeyboardButton(text="Получить файл", callback_data=f"pack_download_{pack.title}")
-    btn_upload = types.InlineKeyboardButton(text="Обновить файл", callback_data=f"pack_upload_{pack.title}")
     btn_back = types.InlineKeyboardButton(text="↩️", callback_data=f"packs_refresh")
     btn_delete = types.InlineKeyboardButton(text="❌", callback_data=f"pack_delete_{pack.title}")
     keyboard.add(btn_download)
-    keyboard.add(btn_upload)
     keyboard.add(btn_delete, btn_back)
     return keyboard

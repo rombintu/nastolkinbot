@@ -136,7 +136,7 @@ class Game:
             self.PLAYERS["players_max"] = max_players
     
     def get_table_players(self):
-        return "\n".join([f'{i+1}. {pl.name} *{pl.nick.title()}*' \
+        return "\n".join([f'{i+1}. {pl.name} *{pl.nick.title()}*: {pl.score} Смех@чков' \
             for i, pl in enumerate(self.PLAYERS["players"])])
 
     def add_player(self, player):
@@ -242,8 +242,7 @@ class Memory:
     def delete_pack_by_title(self, title):
         for i, pack in enumerate(self.packs):
             if pack.title == title:
-                if not pack.delete():
-                    return False
+                pack.delete()
                 self.packs.pop(i)
                 update_pack_file(self.packs)
                 return True
