@@ -16,7 +16,7 @@ sudo systemctl enable --now nastolkinbot.service
 
 ### Install (Docker)
 ```bash
-docker build -t nastolkinbot:0.3.0 .
+docker build -t nastolkinbot:0.3.7 .
 docker run -d -e 'BOT_TOKEN=<YOUR_TOKEN>' -name nastolkinbot nastolkinbot:0.3.0
 ```
 
