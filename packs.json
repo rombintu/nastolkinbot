@@ -4,5 +4,11 @@
         "game_type": 0,
         "owner": 0,
         "filename": "default.txt"
+    },
+    {
+        "title": "default1",
+        "game_type": 0,
+        "owner": 469973030,
+        "filename": "default1_469973030.txt"
     }
 ]

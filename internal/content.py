@@ -18,7 +18,7 @@ messages = {
 Создай свой пак! /mypacks
     
     При поломке пиши @{admin}
-    *Ваши данные нигде не хранятся!*"""
+    *Ваши данные нигде не хранятся, только сборки*"""
 }
 
 # ERRORS
@@ -70,6 +70,9 @@ class Pack:
     def get_size(self):
         self.questions = self.get_questions() 
         return len(self.questions)
+
+    def get_question(self, round):
+        return self.questions[round]
 
     def get_rand_question(self):
         return choice(self.questions)

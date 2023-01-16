@@ -33,7 +33,7 @@ class Player:
     def clear_answer(self):
         self.set_answer(None)    
 
-    def add_score(self, score):
+    def add_score(self, score=1):
         self.game["score"] = self.game["score"] + score
 
     def end_game(self):
@@ -44,7 +44,7 @@ class Player:
         pass
 
 class Game:
-    def __init__(self, pack, max_players=8, game_type=0, round_max=12):
+    def __init__(self, pack, max_players=8, game_type=0):
         self.refresh_id()
         self.PLAYERS = {
             "players": [], 
@@ -55,8 +55,8 @@ class Game:
         self.password = None # TODO
         self.timeround = None # TODO
         self.pack = pack
-        self.round = 1
-        self.round_max = round_max
+        self.round = 0
+        self.round_max = len(self.pack.questions)
 
     def info(self):
         buff = f"Игра: {self._id} 🎮\n"
@@ -82,6 +82,20 @@ class Game:
 
     def get_pack_title(self):
         return self.pack.title.title()
+
+    def get_winner(self):
+        winner_score = 0
+        winner = None
+        for player in self.PLAYERS["players"]:
+            if player.score > winner_score:
+                winner = player
+        return winner
+
+    def add_score_by_uuid(self, uuid):
+        for pl in self.PLAYERS["players"]:
+            if pl.uuid == uuid:
+                pl.add_score()
+                return
 
     def check_players_answers_by_None(self):
         if None in self.get_players_answers():
@@ -111,11 +125,12 @@ class Game:
 
     def update_pack(self, packs): # TODO
         for i, p in enumerate(packs):
-            if self.pack.title == p.title:
+            if p.title == self.pack.title:
                 self.pack = packs[(i+1) % len(packs)]
+                return
 
     def get_timeround(self):
-        return "ждем всех"
+        return "Ждем всех"
         # else: return self.timeround TODO
     
     def get_game_type(self): return types_game[self.pack.game_type][0]
@@ -176,7 +191,7 @@ class Memory:
     def get_games_names(self):
         return ', '.join(game._id for game in self.GAMES["games"])
 
-    def try_get_player_by_uuid(self, uuid, name):
+    def try_get_player_by_uuid(self, uuid, name=""):
         for game in self.GAMES["games"]:
             for i, g in enumerate(game.get_players()):
                 if g.uuid == uuid:

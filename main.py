@@ -45,36 +45,32 @@ def send_to_players(message, game, text, keyboard=None, get_input=False, end_rou
 def handle_next_round(message, player, game):
     player_answer = message.text
     if not player_answer or player_answer in game.get_players_answers() or len(player_answer) > 25:
-        bot.send_message(player.uuid, "Ожидается небольшой текст или кто то тебя опередил 🤔\nПопробуй еще раз!")
+        bot.send_message(player.uuid, "Слишком большой ответ или кто то ответил также 🤔\nПопробуй еще раз!")
         bot.register_next_step_handler(message, handle_next_round, player, game)
         return
     player.set_answer(player_answer)
     if game.check_players_answers_by_None():
         send_to_players(message, game, 
             f"Голосуй за самый смешной ответ", 
-            keyboard=kb.get_keyboard_round(game.get_players()), get_input=True, end_round=True)
+            keyboard=kb.get_keyboard_round(game), get_input=True, end_round=True)
     else:
         bot.send_message(player.uuid, "Отлично, ждем остальных!", reply_markup=types.ReplyKeyboardRemove())
 
 def handle_end_round(message, player, game):
-    player.add_score(game.get_players_answers().count(player.answer)) # TODO
     player.clear_answer()
-
     if game.end():
-        bot.send_message(player.uuid, f"Игра закончена, расходимся!", reply_markup=types.ReplyKeyboardRemove())
+        winner = game.get_winner()
+        send_to_players(message, game, f"Итоги игры:\n{game.get_table_players()}")
+        send_to_players(message, game, f"Лучшим троллем оказался: {winner.name} 🤯")
+        bot.send_message(player.uuid, f"Игра закончена, распускаю группу!", reply_markup=types.ReplyKeyboardRemove())
         game.del_player(player)
         return
     elif game.check_players_answers_by_empty():
         send_to_players(message, game, f"Итоги раунда:\n{game.get_table_players()}")
         send_to_players(message, game,  
-            f"Внимание, раунд {game.get_round()}/{game.round_max}: {game.pack.get_rand_question()}", get_input=True)
+            f"Внимание, раунд {game.get_round()+1}/{game.round_max}:\n{game.pack.get_question(game.get_round())}", get_input=True)
     else:
         bot.send_message(player.uuid, "Отлично, ждем остальных!", reply_markup=types.ReplyKeyboardRemove())
-
-# def handle_middleskip_round(message, player, game):
-#     # bot.send_message(player.uuid, 
-#     #     f"Внимание раунд {game.get_round()}/{game.round_max}: {content.get_rand_question()}")
-#     bot.register_next_step_handler(message, handle_next_round, player, game)
 
 @bot.message_handler(commands=['start'])
 def handle_message_start(message):
@@ -256,8 +252,19 @@ def games_callback(c: types.CallbackQuery):
             send_to_players(c.message, game, f"Итак, начнем игру\nСегодня с нами играют:\n{game.get_table_players()}")
             send_to_players(c.message, game, f"Правила игры: {game.get_game_rule()}")
             send_to_players(c.message, game, 
-                f"Внимание, раунд {game.get_round()}/{game.round_max}: {game.pack.get_rand_question()}",
+                f"Внимание, раунд {game.get_round()+1}/{game.round_max}:\n{game.pack.get_question(game.get_round())}",
                 get_input=True)
+        case ["game", "answer", _, _]:
+            game_id = data[-2]
+            player_like_uuid = int(data[-1])
+            game = mem.get_game_by_id(game_id)
+            if not game:
+                bot.send_message(c.message.chat.id, content.game_not_found.format(game_id))
+                return
+            log.debug(player_like_uuid)
+            game.add_score_by_uuid(player_like_uuid)
+            bot.edit_message_text("Дальше /next", c.message.chat.id, c.message.id)
+
         case ["packs", "refresh"]:
             player = mem.try_get_player_by_uuid(c.message.chat.id, c.message.chat.first_name)
             packs = mem.get_packs_by_uuid(player.uuid)
@@ -299,15 +306,6 @@ def games_callback(c: types.CallbackQuery):
                     "Не могу найти эту сборку, попробуйте позже"
                 )
             bot.send_document(c.message.chat.id, pack.get_file())
-        # case ["pack", "upload", _]:
-        #     pack = mem.get_pack_by_title(data[-1])
-        #     if not pack:
-        #         bot.send_message(
-        #             c.message.chat.id, 
-        #             "Не могу найти эту сборку, попробуйте позже"
-        #         )
-        #     bot.send_message(c.message.chat.id, "Теперь я жду файл формата .TXT" + f"\n{content.pack_help}")
-        #     bot.register_next_step_handler(c.message, create_pack_content, pack, update=True)
         case ["pack", "delete", _]:
             pack = mem.get_pack_by_title(data[-1])
             if not pack:

@@ -39,21 +39,22 @@ def get_keyboard_game(game):
     btn_game_delete = types.InlineKeyboardButton(text="Удалить 🚮", callback_data=f"game_delete_{game._id}")
     btn_game_start = types.InlineKeyboardButton(text="Начать игру", callback_data=f"game_start_{game._id}")
 
-    keyboard = types.InlineKeyboardMarkup(row_width=3)
+    keyboard = types.InlineKeyboardMarkup()
     keyboard.row(btn_game_type, btn_game_max_players)
     keyboard.row(btn_game_pack)
     keyboard.row(btn_game_password, btn_game_timeround)
     keyboard.row(btn_game_delete, btn_game_start)
     return keyboard
 
-def get_keyboard_round(players):
-    # keyboard = types.InlineKeyboardMarkup(row_width=3)
-    # for player in players:
-    #     btn = types.InlineKeyboardButton(text=f"{player.answer}", callback_data=f"{player.answer}")
-    #     keyboard.add(btn)
-    keyboard = types.ReplyKeyboardMarkup(row_width=3)
-    for pl in players:
-        keyboard.add(pl.answer)
+def get_keyboard_round(game):
+    keyboard = types.InlineKeyboardMarkup()
+    for player in game.get_players():
+        # if player.uuid == current_player: continue
+        btn = types.InlineKeyboardButton(text=f"{player.answer}", callback_data=f"game_answer_{game._id}_{player.uuid}")
+        keyboard.add(btn)
+    # keyboard = types.ReplyKeyboardMarkup()
+    # for pl in players:
+    #     keyboard.add(pl.answer)
     return keyboard
 
 def get_keyboard_packs_type_game():
