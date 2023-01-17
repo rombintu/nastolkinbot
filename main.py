@@ -170,7 +170,8 @@ def games_callback(c: types.CallbackQuery):
                 return
             player = mem.try_get_player_by_uuid(c.message.chat.id, c.message.chat.first_name)
             packs = mem.get_packs_by_uuid(player.uuid)
-            packs.append(mem.get_default_pack())
+            packs.extend(mem.get_default_packs())
+            log.debug(packs)
             game.update_pack(packs)
 
             bot.edit_message_text(f"Игра: *{game._id}*",
@@ -341,7 +342,7 @@ def handle_message_create(message):
     if not packs:
         bot.send_message(
             message.chat.id, 
-            "У вас нет своих сборок, можете создать /newpack"
+            "У тебя нет своих сборок. Создай сейчас! /newpack"
         )
     else:
         bot.send_message(

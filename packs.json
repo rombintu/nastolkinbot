@@ -1,12 +1,24 @@
 [
     {
-        "title": "default",
+        "title": "Сигна в лс",
         "game_type": 0,
         "owner": 0,
-        "filename": "default.txt"
+        "filename": "default_1.txt"
     },
     {
-        "title": "default1",
+        "title": "Спид раннер",
+        "game_type": 0,
+        "owner": 0,
+        "filename": "default_2.txt"
+    },
+    {
+        "title": "Упал отжался",
+        "game_type": 0,
+        "owner": 0,
+        "filename": "default_3.txt"
+    },
+    {
+        "title": "Пинг есть!",
         "game_type": 0,
         "owner": 469973030,
         "filename": "default1_469973030.txt"

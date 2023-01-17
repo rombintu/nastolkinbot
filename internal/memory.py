@@ -128,6 +128,7 @@ class Game:
             if p.title == self.pack.title:
                 self.pack = packs[(i+1) % len(packs)]
                 return
+        return
 
     def get_timeround(self):
         return "Ждем всех"
@@ -238,8 +239,8 @@ class Memory:
                 return True
         return False
 
-    def get_default_pack(self):
-        return self.packs[0]
+    def get_default_packs(self):
+        return self.packs[:3]
 
     def get_packs_by_uuid(self, uuid):
         packs = []

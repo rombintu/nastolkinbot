@@ -46,12 +46,15 @@ def get_content(filename, packs=False):
     path = os.path.join(os.getcwd(), filename)
     if packs:
         path = os.path.join(os.getcwd(), "packs", filename)
+    lines = []
     try:
         with open(path, "r") as f:
-            return f.read().splitlines()
+            for line in f.read().splitlines():
+                if line: lines.append(line)
     except Exception as err:
         log.debug(err)
-        return []
+    return lines
+
 class Pack:
     def __init__(self, title, owner, game_type, filename, new=False):
         self.title = title
