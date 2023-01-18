@@ -127,7 +127,9 @@ class Game:
         for i, p in enumerate(packs):
             if p.title == self.pack.title:
                 self.pack = packs[(i+1) % len(packs)]
+                self.round_max = len(self.pack.questions)-1
                 return
+        self.round_max = len(self.pack.questions)-1
         return
 
     def get_timeround(self):
