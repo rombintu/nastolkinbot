@@ -56,7 +56,7 @@ class Game:
         self.timeround = None # TODO
         self.pack = pack
         self.round = 0
-        self.round_max = len(self.pack.questions)
+        self.round_max = len(self.pack.questions)-1
 
     def info(self):
         buff = f"Игра: {self._id} 🎮\n"
